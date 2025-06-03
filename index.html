@@ -11,7 +11,7 @@
     <h1>🧠 AI Screen Assistant</h1>
 
     <button id="shareBtn" class="btn">📺 Share Screen</button>
-
+<input type="file" id="uploadInput" accept="image/*" class="btn" />
     <input
       id="question"
       type="text"
@@ -28,83 +28,101 @@
     <canvas id="canvas"></canvas>
   </main>
 
-  <script>
-    const shareBtn = document.getElementById('shareBtn');
-    const askBtn = document.getElementById('askBtn');
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
-    const answerDiv = document.getElementById('answer');
-    const questionInput = document.getElementById('question');
+<script>
+  const shareBtn = document.getElementById('shareBtn');
+  const askBtn = document.getElementById('askBtn');
+  const uploadInput = document.getElementById('uploadInput');
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  const answerDiv = document.getElementById('answer');
+  const questionInput = document.getElementById('question');
 
-    let stream = null;
+  let stream = null;
+  let uploadedImageBase64 = null;
 
-    shareBtn.addEventListener('click', async () => {
-      try {
-        stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        video.srcObject = stream;
-        answerDiv.textContent = '✅ Screen sharing started. Now enter your question.';
-      } catch (err) {
-        answerDiv.textContent = `⚠️ Error starting screen share: ${err.message}`;
-      }
-    });
+  shareBtn.addEventListener('click', async () => {
+    try {
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      video.srcObject = stream;
+      answerDiv.textContent = '✅ Screen sharing started. Now enter your question.';
+      uploadedImageBase64 = null; // reset uploaded image if screen sharing is active
+    } catch (err) {
+      answerDiv.textContent = `⚠️ Error starting screen share: ${err.message}`;
+    }
+  });
 
-    askBtn.addEventListener('click', async () => {
-      const question = questionInput.value.trim();
-      if (!stream) {
-        answerDiv.textContent = '⚠️ You must share your screen first.';
-        return;
-      }
-      if (!question) {
-        answerDiv.textContent = '⚠️ Please enter your question.';
-        return;
-      }
+  uploadInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
+    const reader = new FileReader();
+    reader.onload = function () {
+      uploadedImageBase64 = reader.result.split(',')[1]; // remove data:image/... prefix
+      answerDiv.textContent = '📷 Image uploaded. Now enter your question.';
+      stream = null; // disable screen capture when image is uploaded
+    };
+    reader.readAsDataURL(file);
+  });
+
+  askBtn.addEventListener('click', async () => {
+    const question = questionInput.value.trim();
+    if (!question) {
+      answerDiv.textContent = '⚠️ Please enter your question.';
+      return;
+    }
+
+    let base64Image = null;
+
+    if (uploadedImageBase64) {
+      base64Image = uploadedImageBase64;
+    } else if (stream) {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext('2d');
-      ctx.filter = 'contrast(150%) brightness(110%)'; // Slight enhancement
+      ctx.filter = 'contrast(150%) brightness(110%)';
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       ctx.filter = 'none';
+      base64Image = canvas.toDataURL('image/png').split(',')[1];
+    } else {
+      answerDiv.textContent = '⚠️ Please share screen or upload image.';
+      return;
+    }
 
-      const dataURL = canvas.toDataURL('image/png');
-      const base64Image = dataURL.replace(/^data:image\/png;base64,/, '');
+    answerDiv.textContent = '🔍 Extracting text with OCR.Space...';
 
-      answerDiv.textContent = '🔍 Extracting text with OCR.Space...';
+    try {
+      const ocrResponse = await fetch('https://api.ocr.space/parse/image', {
+        method: 'POST',
+        headers: {
+          apikey: 'K83130937888957',
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          base64Image: 'data:image/png;base64,' + base64Image,
+          language: 'eng',
+          isOverlayRequired: 'false',
+        }),
+      });
 
-      try {
-        
-        const ocrResponse = await fetch('https://api.ocr.space/parse/image', {
-          method: 'POST',
-          headers: {
-            apikey: 'K83130937888957',
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams({
-            base64Image: 'data:image/png;base64,' + base64Image,
-            language: 'eng',
-            isOverlayRequired: 'false',
-          }),
-        });
-        const ocrResult = await ocrResponse.json();
-        if (ocrResult.IsErroredOnProcessing) {
-          answerDiv.textContent = 'OCR Error: ' + ocrResult.ErrorMessage[0];
-          return;
-        }
-        const screenText = ocrResult.ParsedResults[0]?.ParsedText || '';
-        console.log('OCR Text:', screenText);
+      const ocrResult = await ocrResponse.json();
+      if (ocrResult.IsErroredOnProcessing) {
+        answerDiv.textContent = 'OCR Error: ' + ocrResult.ErrorMessage[0];
+        return;
+      }
+      const screenText = ocrResult.ParsedResults[0]?.ParsedText || '';
+      console.log('OCR Text:', screenText);
 
-        answerDiv.textContent = '🧠 Asking Cohere AI...';
+      answerDiv.textContent = '🧠 Asking Cohere AI...';
 
-
-        const cohereResponse = await fetch('https://api.cohere.ai/v1/chat', {
-          method: 'POST',
-          headers: {
-            Authorization: 'Bearer 4soVmcAsM0ayB1O24GbH9ixFSi8ukTAYLteK4qNh',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'command-r',
-            message: `
+      const cohereResponse = await fetch('https://api.cohere.ai/v1/chat', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer 4soVmcAsM0ayB1O24GbH9ixFSi8ukTAYLteK4qNh',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'command-r',
+          message: `
 You are reading text extracted from a webpage screenshot. Based on this text:
 
 ${screenText}
@@ -112,19 +130,21 @@ ${screenText}
 Answer this question:
 
 ${question}
-            `,
-            temperature: 0.5,
-          }),
-        });
-        const cohereResult = await cohereResponse.json();
-        console.log('Cohere AI response:', cohereResult);
+          `,
+          temperature: 0.5,
+        }),
+      });
 
-        const aiAnswer = cohereResult?.text || cohereResult?.response || '❌ No AI response.';
-        answerDiv.textContent = aiAnswer;
-      } catch (error) {
-        answerDiv.textContent = 'Error: ' + error.message;
-      }
-    });
-  </script>
+      const cohereResult = await cohereResponse.json();
+      console.log('Cohere AI response:', cohereResult);
+
+      const aiAnswer = cohereResult?.text || cohereResult?.response || '❌ No AI response.';
+      answerDiv.textContent = aiAnswer;
+    } catch (error) {
+      answerDiv.textContent = 'Error: ' + error.message;
+    }
+  });
+</script>
+
 </body>
 </html>
