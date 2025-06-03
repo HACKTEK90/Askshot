@@ -145,17 +145,50 @@ canvas {
     min-height: 100px;
   }
 }
-.note-glass {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
-  padding: 12px 18px;
-  margin: 12px 0 24px;
+.note-message {
+  --main-color: rgb(46, 213, 115);
+  --main-bg-color: rgba(46, 213, 116, 0.25);
+  --pattern-color: rgba(46, 213, 116, 0.07);
+
+  filter: hue-rotate(0deg);
+
   text-align: center;
-  color: #ffffffcc;
-  font-size: 0.95rem;
+  text-transform: none;
+  letter-spacing: 0.03rem;
+  background: radial-gradient(
+      circle,
+      var(--main-bg-color) 0%,
+      rgba(0, 0, 0, 0) 95%
+    ),
+    linear-gradient(var(--pattern-color) 1px, transparent 1px),
+    linear-gradient(to right, var(--pattern-color) 1px, transparent 1px);
+  background-size:
+    cover,
+    15px 15px,
+    15px 15px;
+  background-position:
+    center center,
+    center center,
+    center center;
+
+  border-image: radial-gradient(
+      circle,
+      var(--main-color) 0%,
+      rgba(0, 0, 0, 0) 100%
+    ) 1;
+  border-width: 1px 0 1px 0;
+  border-style: solid;
+
+  color: var(--main-color);
+  font-weight: 500;
+  font-size: 1rem;
+  padding: 1rem 2rem;
+  border-radius: 12px;
+  margin: 1rem 0 2rem;
+
   backdrop-filter: blur(10px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  transition: background-size 0.2s ease-in-out;
 }
+
 
