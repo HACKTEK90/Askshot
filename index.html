@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Screen Assistant</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="container glass">
+    <h1>🧠 AI Screen Assistant</h1>
+
+    <button id="shareBtn" class="btn">📺 Share Screen</button>
+
+    <input
+      id="question"
+      type="text"
+      placeholder="Ask a question about the screen..."
+      autocomplete="off"
+      spellcheck="false"
+      class="input"
+    />
+    <button id="askBtn" class="btn">🧠 Capture & Ask AI</button>
+
+    <section id="answer" class="answer">AI answer will appear here...</section>
+
+    <video id="video" autoplay muted playsinline></video>
+    <canvas id="canvas"></canvas>
+  </main>
+
+  <script>
+    const shareBtn = document.getElementById('shareBtn');
+    const askBtn = document.getElementById('askBtn');
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const answerDiv = document.getElementById('answer');
+    const questionInput = document.getElementById('question');
+
+    let stream = null;
+
+    shareBtn.addEventListener('click', async () => {
+      try {
+        stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        video.srcObject = stream;
+        answerDiv.textContent = '✅ Screen sharing started. Now enter your question.';
+      } catch (err) {
+        answerDiv.textContent = `⚠️ Error starting screen share: ${err.message}`;
+      }
+    });
+
+    askBtn.addEventListener('click', async () => {
+      const question = questionInput.value.trim();
+      if (!stream) {
+        answerDiv.textContent = '⚠️ You must share your screen first.';
+        return;
+      }
+      if (!question) {
+        answerDiv.textContent = '⚠️ Please enter your question.';
+        return;
+      }
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.filter = 'contrast(150%) brightness(110%)'; // Slight enhancement
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      ctx.filter = 'none';
+
+      const dataURL = canvas.toDataURL('image/png');
+      const base64Image = dataURL.replace(/^data:image\/png;base64,/, '');
+
+      answerDiv.textContent = '🔍 Extracting text with OCR.Space...';
+
+      try {
+        
+        const ocrResponse = await fetch('https://api.ocr.space/parse/image', {
+          method: 'POST',
+          headers: {
+            apikey: 'K83130937888957',
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            base64Image: 'data:image/png;base64,' + base64Image,
+            language: 'eng',
+            isOverlayRequired: 'false',
+          }),
+        });
+        const ocrResult = await ocrResponse.json();
+        if (ocrResult.IsErroredOnProcessing) {
+          answerDiv.textContent = 'OCR Error: ' + ocrResult.ErrorMessage[0];
+          return;
+        }
+        const screenText = ocrResult.ParsedResults[0]?.ParsedText || '';
+        console.log('OCR Text:', screenText);
+
+        answerDiv.textContent = '🧠 Asking Cohere AI...';
+
+
+        const cohereResponse = await fetch('https://api.cohere.ai/v1/chat', {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer 4soVmcAsM0ayB1O24GbH9ixFSi8ukTAYLteK4qNh',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'command-r',
+            message: `
+You are reading text extracted from a webpage screenshot. Based on this text:
+
+${screenText}
+
+Answer this question:
+
+${question}
+            `,
+            temperature: 0.5,
+          }),
+        });
+        const cohereResult = await cohereResponse.json();
+        console.log('Cohere AI response:', cohereResult);
+
+        const aiAnswer = cohereResult?.text || cohereResult?.response || '❌ No AI response.';
+        answerDiv.textContent = aiAnswer;
+      } catch (error) {
+        answerDiv.textContent = 'Error: ' + error.message;
+      }
+    });
+  </script>
+</body>
+</html>
