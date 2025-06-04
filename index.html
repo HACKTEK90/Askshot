@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>AI Screen Assistant</title>
   <link rel="stylesheet" href="styles.css" />
+  <link id="favicon" rel="icon" href="" type="image/png">
 </head>
 <body>
   <main class="container glass">
@@ -148,7 +149,37 @@ ${question}
       answerDiv.textContent = 'Error: ' + error.message;
     }
   });
-</script>
+</script><script>
+    (function animateFavicon() {
+      const size = 32;
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      const link = document.getElementById('favicon');
+
+      function drawFrame() {
+        ctx.clearRect(0, 0, size, size);
+
+        // Optional background
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, size, size);
+
+        // Pulsing red circle
+        const t = Date.now() / 500;
+        const radius = 6 + 3 * Math.sin(t);
+
+        ctx.beginPath();
+        ctx.arc(size / 2, size / 2, radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#f00';
+        ctx.fill();
+
+        // Set favicon
+        link.href = canvas.toDataURL('image/png');
+      }
+
+      setInterval(drawFrame, 100);
+    })();
+  </script>
 
 </body>
 </html>
